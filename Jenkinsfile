@@ -6,7 +6,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git 'https://github.com/rohitgithub98/SimpleIosApp.git'
+                git branch: 'main', url: 'https://github.com/rohitgithub98/SimpleIosApp.git'
             }
         }
         stage('Run Tests') {
