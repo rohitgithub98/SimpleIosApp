@@ -1,28 +1,37 @@
 pipeline {
     agent any
-
+    environment {
+        PATH = "/opt/homebrew/opt/ruby/bin:$PATH"
+    }
     stages {
-        stage('Checkout Code') {
+        stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/rohitgithub98/SimpleIosApp.git'
+                git 'https://github.com/rohitgithub98/SimpleIosApp.git'
             }
         }
-
         stage('Run Tests') {
             steps {
-                sh 'xcodebuild test -project SimpleIosApp.xcodeproj -scheme SimpleIosApp -destination "platform=iOS Simulator,name=iPhone 16"'
+                sh '''
+                export PATH="/opt/homebrew/opt/ruby/bin:$PATH"
+                xcodebuild test \
+                  -project SimpleIosApp.xcodeproj \
+                  -scheme SimpleIosApp \
+                  -destination "platform=iOS Simulator,name=iPhone 16" \
+                  -disable-concurrent-destination-testing \
+                  -enableCodeCoverage YES \
+                  -retry-tests-on-failure | /opt/homebrew/opt/ruby/bin/xcpretty
+                '''
             }
         }
-
         stage('Build Artifact') {
             steps {
-                sh 'xcodebuild -project SimpleIosApp.xcodeproj -scheme SimpleIosApp -destination "platform=iOS Simulator,name=iPhone 16" -configuration Release -archivePath build/SimpleIosApp.xcarchive archive'
-            }
-        }
-
-        stage('Archive Artifacts') {
-            steps {
-                archiveArtifacts artifacts: 'build/**/*.xcarchive', fingerprint: true
+                sh '''
+                export PATH="/opt/homebrew/opt/ruby/bin:$PATH"
+                xcodebuild build \
+                  -project SimpleIosApp.xcodeproj \
+                  -scheme SimpleIosApp \
+                  -destination "platform=iOS Simulator,name=iPhone 16"
+                '''
             }
         }
     }
