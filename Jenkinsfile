@@ -19,7 +19,7 @@ pipeline {
                   -destination "platform=iOS Simulator,name=iPhone 16" \
                   -disable-concurrent-destination-testing \
                   -enableCodeCoverage YES \
-                  -retry-tests-on-failure | /opt/homebrew/opt/ruby/bin/xcpretty
+                  -retry-tests-on-failure | /opt/homebrew/opt/ruby/bin/xcpretty --test --color
                 '''
             }
         }
@@ -32,6 +32,15 @@ pipeline {
                   -scheme SimpleIosApp \
                   -destination "platform=iOS Simulator,name=iPhone 16"
                 '''
+            }
+        }
+        stage('Archive Build') {
+            steps {
+                sh '''
+                mkdir -p build-output
+                cp -r ~/Library/Developer/Xcode/DerivedData/**/Build/Products/Debug-iphonesimulator/SimpleIosApp.app build-output/
+                '''
+                archiveArtifacts artifacts: 'build-output/**', fingerprint: true
             }
         }
     }
