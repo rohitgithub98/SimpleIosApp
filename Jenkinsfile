@@ -18,24 +18,29 @@ pipeline {
                 xcrun simctl shutdown all
                 xcrun simctl erase all
                 
-                # Get Simulator UDID
-                SIMULATOR_UDID=$(xcrun simctl list devices available | grep "iPhone 16" | head -n 1 | awk -F '[()]' '{print $2}')
+                # Check available simulators and select a valid iPhone 16 UDID
+                SIMULATOR_UDID=$(xcrun simctl list devices available | grep "iPhone 16" | grep -v 'unavailable' | head -n 1 | awk -F '[()]' '{print $2}')
                 
                 if [ -z "$SIMULATOR_UDID" ]; then
-                    echo "❌ No available iPhone 16 simulator found!"
-                    exit 1
+                    echo "❌ No available iPhone 16 simulator found! Checking for other available iPhones..."
+                    SIMULATOR_UDID=$(xcrun simctl list devices available | grep "iPhone" | grep -v 'unavailable' | head -n 1 | awk -F '[()]' '{print $2}')
                 fi
                 
+                if [ -z "$SIMULATOR_UDID" ]; then
+                    echo "❌ No available iOS simulator found! Please check Xcode installations."
+                    exit 1
+                fi
+
                 echo "✅ Using Simulator: $SIMULATOR_UDID"
-                
+
                 # Boot up the simulator
                 xcrun simctl boot "$SIMULATOR_UDID"
                 
                 # Ensure simulator is running
                 open -a Simulator
-
-                # Wait for simulator to be fully ready
-                sleep 10
+                
+                # Wait for the simulator to be fully ready
+                sleep 15
 
                 xcodebuild test \
                   -project SimpleIosApp.xcodeproj \
@@ -47,6 +52,7 @@ pipeline {
                 '''
             }
         }
+
         stage('Build Archive') {
             steps {
                 sh '''
