@@ -18,29 +18,24 @@ pipeline {
                 xcrun simctl shutdown all
                 xcrun simctl erase all
                 
-                # Check available simulators and select a valid iPhone 16 UDID
-                SIMULATOR_UDID=$(xcrun simctl list devices available | grep "iPhone 16" | grep -v 'unavailable' | head -n 1 | awk -F '[()]' '{print $2}')
+                # Get Simulator UDID
+                SIMULATOR_UDID=$(xcrun simctl list devices available | grep "iPhone 16 Pro" | head -n 1 | awk -F '[()]' '{print $2}')
                 
                 if [ -z "$SIMULATOR_UDID" ]; then
-                    echo "❌ No available iPhone 16 simulator found! Checking for other available iPhones..."
-                    SIMULATOR_UDID=$(xcrun simctl list devices available | grep "iPhone" | grep -v 'unavailable' | head -n 1 | awk -F '[()]' '{print $2}')
-                fi
-                
-                if [ -z "$SIMULATOR_UDID" ]; then
-                    echo "❌ No available iOS simulator found! Please check Xcode installations."
+                    echo "❌ No available iPhone 16 Pro simulator found!"
                     exit 1
                 fi
-
+                
                 echo "✅ Using Simulator: $SIMULATOR_UDID"
-
+                
                 # Boot up the simulator
                 xcrun simctl boot "$SIMULATOR_UDID"
                 
                 # Ensure simulator is running
                 open -a Simulator
-                
-                # Wait for the simulator to be fully ready
-                sleep 15
+
+                # Wait for simulator to be fully ready
+                sleep 10
 
                 xcodebuild test \
                   -project SimpleIosApp.xcodeproj \
@@ -52,45 +47,20 @@ pipeline {
                 '''
             }
         }
-
         stage('Build Archive') {
             steps {
                 sh '''
                 export PATH="/opt/homebrew/opt/ruby/bin:$PATH"
 
-                # Archive the app
-                xcodebuild archive \
+                # Build WITHOUT Code Signing for iOS Simulator
+                xcodebuild build \
                   -project SimpleIosApp.xcodeproj \
                   -scheme SimpleIosApp \
-                  -archivePath build-output/SimpleIosApp.xcarchive \
-                  -sdk iphoneos \
-                  -allowProvisioningUpdates
-                '''
-            }
-        }
-        stage('Export IPA') {
-            steps {
-                sh '''
-                export PATH="/opt/homebrew/opt/ruby/bin:$PATH"
-
-                # Create ExportOptions.plist file
-                cat <<EOF > ExportOptions.plist
-                {
-                  "method": "development",
-                  "teamID": "YOUR_TEAM_ID",
-                  "compileBitcode": false,
-                  "destination": "export",
-                  "signingStyle": "automatic",
-                  "stripSwiftSymbols": true,
-                  "thinning": "<none>"
-                }
-                EOF
-
-                # Export IPA
-                xcodebuild -exportArchive \
-                  -archivePath build-output/SimpleIosApp.xcarchive \
-                  -exportOptionsPlist ExportOptions.plist \
-                  -exportPath build-output/
+                  -destination "platform=iOS Simulator,id=$SIMULATOR_UDID" \
+                  CODE_SIGN_IDENTITY="" \
+                  CODE_SIGNING_REQUIRED=NO \
+                  CODE_SIGN_ENTITLEMENTS="" \
+                  CODE_SIGNING_ALLOWED=NO
                 '''
             }
         }
@@ -98,10 +68,10 @@ pipeline {
             steps {
                 sh '''
                 mkdir -p build-output
+                cp -r ~/Library/Developer/Xcode/DerivedData/**/Build/Products/Debug-iphonesimulator/SimpleIosApp.app build-output/
                 '''
-                archiveArtifacts artifacts: 'build-output/SimpleIosApp.ipa', fingerprint: true
+                archiveArtifacts artifacts: 'build-output/**', fingerprint: true
             }
         }
     }
 }
-
